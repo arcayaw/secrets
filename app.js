@@ -18,11 +18,12 @@ const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 
-const encrypt = require("mongoose-encryption");
+// const encrypt = require("mongoose-encryption"); lo comento por que vamos a usar md5 para hashear
 /* moongose encryption es un paquete de npm que nos permite encriptar y autenticar passwords en nuestra app
 se instala con npm i mongoose-encryption
 https://www.npmjs.com/package/mongoose-encryption
 */
+const md5 = require("md5"); //https://www.npmjs.com/package/md5
 
 const app = express();
 
@@ -60,10 +61,11 @@ const userSchema = new mongoose.Schema({
 //2) me llevo esta constante al archivo .env por eso la comento
 
 /* tomamos el schema que creamos en el paso anterior y le sumamos el plugin de encryt */
-userSchema.plugin(encrypt, {
-  secret: process.env.SECRET,
-  encryptedFields: ["password"],
-}); /* le podemos pasar como parametro solo el campo que queremos encriptar en este caso el password */
+// userSchema.plugin(encrypt, {
+//   secret: process.env.SECRET,
+//   encryptedFields: ["password"],
+// }); /* le podemos pasar como parametro solo el campo que queremos encriptar en este caso el password */
+//comentamos esto de nuevo porque ahora no vamos a usar el encryptation sino el hasd de md5
 
 /*-------- creamos el model  --------*/
 
@@ -93,7 +95,7 @@ app.get("/register", function (req, res) {
 app.post("/register", function (req, res) {
   const newUser = new User({
     email: req.body.username,
-    password: req.body.password,
+    password: md5(req.body.password), //usamos el hash function para convertir la pass en un hash
   });
 
   /* salvamos los datos del usuario y le damos acceso a /secrets */
@@ -111,7 +113,7 @@ app.post("/login", function (req, res) {
   /* buscamos dentro de la base de datos si los datos ingresados en el form los tenemos */
 
   const username = req.body.username;
-  const password = req.body.password;
+  const password = md5(req.body.password); //con la funcion md5 comparamos el hash generado en el registro con el hash del login, porque los hash siempre seran iguales.
 
   /* dentro de la bsase, con el metodo propio findOne buscamos el mail del usuario */
   User.findOne({ email: username }, function (err, foundUser) {
