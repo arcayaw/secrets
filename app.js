@@ -23,7 +23,14 @@ const mongoose = require("mongoose");
 se instala con npm i mongoose-encryption
 https://www.npmjs.com/package/mongoose-encryption
 */
-const md5 = require("md5"); //https://www.npmjs.com/package/md5
+
+//lo comento porque ahora vamos a usar bcrypt para robustecer el storage de contrasenias
+// const md5 = require("md5"); //https://www.npmjs.com/package/md5
+
+const bcrypt = require("bcrypt");
+const saltRounds = 10; // la cantidad de veces que se va a aplicar el proceso al hash para modificarlo
+/* es un paquete que nos ayuda a fortalecer las passwords con rondas de salt  
+https://www.npmjs.com/package/bcrypt*/
 
 const app = express();
 
@@ -93,19 +100,39 @@ app.get("/register", function (req, res) {
 
 /* Del form dentro de /register vamos a guardar el mail y el password*/
 app.post("/register", function (req, res) {
-  const newUser = new User({
-    email: req.body.username,
-    password: md5(req.body.password), //usamos el hash function para convertir la pass en un hash
+  //esta funcion viene directo de la documentacin de bcrypt
+  bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+    const newUser = new User({
+      email: req.body.username,
+      password: hash,
+    });
+
+    /* salvamos los datos del usuario y le damos acceso a /secrets */
+    newUser.save(function (err) {
+      if (err) {
+        console.log(err);
+      } else {
+        res.render("secrets");
+      }
+    });
   });
 
-  /* salvamos los datos del usuario y le damos acceso a /secrets */
-  newUser.save(function (err) {
-    if (err) {
-      console.log(err);
-    } else {
-      res.render("secrets");
-    }
-  });
+  /********* inicio **********/
+  //*Esta parte la estoy comentando porque la estoy mudadando dentro de la funcion bcrypt
+  // const newUser = new User({
+  //   email: req.body.username,
+  //   password: md5(req.body.password), //usamos el hash function para convertir la pass en un hash
+  // });
+
+  // /* salvamos los datos del usuario y le damos acceso a /secrets */
+  // newUser.save(function (err) {
+  //   if (err) {
+  //     console.log(err);
+  //   } else {
+  //     res.render("secrets");
+  //   }
+  // });
+  /********* end **********/
 });
 /*---------------------------------------------------------*/
 /* creamos el post del login */
@@ -113,7 +140,9 @@ app.post("/login", function (req, res) {
   /* buscamos dentro de la base de datos si los datos ingresados en el form los tenemos */
 
   const username = req.body.username;
-  const password = md5(req.body.password); //con la funcion md5 comparamos el hash generado en el registro con el hash del login, porque los hash siempre seran iguales.
+  const password = req.body.password;
+  // comento la const con md5 porque ahora usare bcrypt
+  // const password = md5(req.body.password); //con la funcion md5 comparamos el hash generado en el registro con el hash del login, porque los hash siempre seran iguales.
 
   /* dentro de la bsase, con el metodo propio findOne buscamos el mail del usuario */
   User.findOne({ email: username }, function (err, foundUser) {
@@ -123,9 +152,14 @@ app.post("/login", function (req, res) {
     } else {
       if (foundUser) {
         /* sino, revisamos que la pass se corresponda con la almacenada, si corresponde damos acceso a secrets */
-        if (foundUser.password === password) {
-          res.render("secrets");
-        }
+        // if (foundUser.password === password) { //comento esta linea porque abajo voy a hacer uso de la funcion brypt
+        bcrypt.compare(password, foundUser.password, function (err, result) {
+          if (result === true) {
+            res.render("secrets");
+          }
+          // result == true
+        });
+        // res.render("secrets");
       }
     }
   });
